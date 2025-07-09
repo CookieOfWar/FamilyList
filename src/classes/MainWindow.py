@@ -3,17 +3,15 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 from classes.MainList import MainList
 from classes.ListUnit import ListUnit
+from classes.DatabaseManager import DatabaseManager
 
 class MainWindow(QWidget):
   def __init__(self):
     super().__init__()
     self.resize(600, 800)
-    self.List: MainList = None
+    self.List: MainList = MainList()
     self.setupUI()
-    for i in range(10):
-      self.List.addUnit(ListUnit())
-    unit = ListUnit()
-    self.List.addUnit(unit)
+    self.DBW = DatabaseManager()
 
   def setupUI(self):
     self.central_layout = QVBoxLayout()
@@ -21,7 +19,6 @@ class MainWindow(QWidget):
 
     self.setupTools()
     
-    self.List = MainList()
     self.central_layout.addWidget(self.List)
 
 
@@ -33,9 +30,87 @@ class MainWindow(QWidget):
     tool_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
     tool_layout.addWidget(QLabel("Настройки"))
 
-    settings_button = QPushButton()
-    settings_button.setIcon(QIcon("src/img/settings_icon.png"))
-    settings_button.setFixedSize(40, 40)
-    settings_button.setIconSize(settings_button.size())
+    filter_hbox = QHBoxLayout()
+    self.central_layout.addLayout(filter_hbox)
+    self.filter_last_button = QPushButton("Фамилия")
+    self.filter_first_button = QPushButton("Имя")
+    self.filter_middle_button = QPushButton("Отчество")
+    for i in [self.filter_last_button, self.filter_first_button, self.filter_middle_button]:
+      i.setStyleSheet("border: none;")
+      i.clicked.connect(self.filterList)
+    filter_hbox.addWidget(self.filter_last_button)
+    filter_hbox.addWidget(self.filter_first_button)
+    filter_hbox.addWidget(self.filter_middle_button)
 
-    tool_layout.addWidget(settings_button)
+    download_button = QPushButton()
+    download_button.clicked.connect(self.downloadDB)
+    download_button.setIcon(QIcon("src/img/download_icon.png"))
+    download_button.setFixedSize(40, 40)
+    download_button.setIconSize(download_button.size())
+
+    upload_button = QPushButton()
+    upload_button.clicked.connect(self.uploadDB)
+    upload_button.setIcon(QIcon("src/img/upload_icon.png"))
+    upload_button.setFixedSize(40, 40)
+    upload_button.setIconSize(upload_button.size())
+
+    tool_layout.addWidget(download_button)
+    tool_layout.addWidget(upload_button)
+
+    add_button = QPushButton("+")
+    add_button.clicked.connect(lambda: (self.List.addUnit(ListUnit()), self.reset_filters()))
+    add_button.setFixedSize(40, 40)
+
+    manage_button = QPushButton()
+    manage_button.clicked.connect(self.manage_list)
+    manage_button.setIcon(QIcon("src/img/settings_icon.png"))
+    manage_button.setFixedSize(40, 40)
+    manage_button.setIconSize(manage_button.size())
+
+    tool_layout.addWidget(add_button)
+    tool_layout.addWidget(manage_button)
+
+  def reset_filters(self):
+    for i in [self.filter_last_button, self.filter_first_button, self.filter_middle_button]:
+      i.setText(i.text().replace(" ▲", "").replace(" ▼", ""))
+
+  def filterList(self):
+    l = [self.filter_last_button, self.filter_first_button, self.filter_middle_button]
+    sender = self.sender()
+    l.remove(sender)
+    for i in l:
+      i.setText(i.text().replace("▼", "").replace("▲", ""))
+    if isinstance(sender, QPushButton):
+      if sender.text().find(" ▼") == -1:
+        sender.setText(sender.text().replace(" ▲", "") + " ▼")
+      else:
+        sender.setText(sender.text().replace(" ▼", "") + " ▲")
+    
+    self.List.filterList(sender.text())
+  
+
+  def downloadDB(self):
+    """Обработчик загрузки БД"""
+    units_data = self.DBW.load_units(self)
+    if units_data is not None:
+        # Очищаем текущие данные
+        self.List.clear_units()
+        
+        # Загружаем новые данные
+        for unit_data in units_data:
+            unit = ListUnit()
+            unit.last_name_text_edit.setText(unit_data['last_name'])
+            unit.first_name_text_edit.setText(unit_data['first_name'])
+            unit.middle_name_text_edit.setText(unit_data['middle_name'])
+            unit.description.setText(unit_data['description'])
+            
+            for pixmap in unit_data['images']:
+                unit.images.add_pixmap(pixmap)
+            
+            self.List.addUnit(unit)
+
+  def uploadDB(self):
+    self.DBW.save_units(self.List.get_list())
+
+  def manage_list(self):
+    self.List.turn_to_manage_mode()

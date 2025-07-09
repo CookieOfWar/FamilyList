@@ -6,37 +6,37 @@ from classes.ImageSelector import ImageSelector
 
 class EditUnitDialog(QWidget):
   end_of_operation = pyqtSignal(str, str, str, str, list)
-  def __init__(self):
+  def __init__(self, ln, fn, mn, desc, pix):
     super().__init__()
-    self.setupUI()
+    self.setupUI(ln, fn, mn, desc, pix)
 
-  def setupUI(self):
+  def setupUI(self, ln, fn, mn, desc, pix):
     self.hbox = QHBoxLayout()
     self.vbox = QVBoxLayout()
 
     self.setLayout(self.vbox)
-    self.last_name_edit = QTextEdit()
+    self.last_name_edit = QTextEdit(ln)
     self.last_name_edit.setPlaceholderText("Фамилия")
     self.last_name_edit.setMaximumHeight(50)
     self.vbox.addWidget(self.last_name_edit)
 
-    self.first_name_edit = QTextEdit()
+    self.first_name_edit = QTextEdit(fn)
     self.first_name_edit.setPlaceholderText("Имя")
     self.first_name_edit.setMaximumHeight(50)
     self.vbox.addWidget(self.first_name_edit)
 
-    self.middle_name_edit = QTextEdit()
+    self.middle_name_edit = QTextEdit(mn)
     self.middle_name_edit.setPlaceholderText("Отчество")
     self.middle_name_edit.setMaximumHeight(50)
     self.vbox.addWidget(self.middle_name_edit)
 
     self.vbox.addLayout(self.hbox)
 
-    self.description = QTextEdit()
+    self.description = QTextEdit(desc)
     self.description.setPlaceholderText("Описание")
     self.hbox.addWidget(self.description)
 
-    self.image_edit = ImageSelector(True)
+    self.image_edit = ImageSelector(True, pix)
     self.hbox.addWidget(self.image_edit)
 
     self.bottom_hbox = QHBoxLayout()

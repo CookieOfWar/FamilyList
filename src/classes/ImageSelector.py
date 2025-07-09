@@ -51,15 +51,21 @@ class ImageSelector(QWidget):
     if self.pixmaps == None:
       return
     self.current_image_index -= 1
+    if self.current_image_index < 0:
+      self.current_image_index = len(self.pixmaps) - 1
     self.update_current_image_index()
 
   def next_image(self):
     if self.pixmaps == []:
       return
     self.current_image_index += 1
+    if self.current_image_index >= len(self.pixmaps):
+      self.current_image_index = 0
     self.update_current_image_index()
 
   def update_current_image_index(self):
+    if self.current_image_index >= len(self.pixmaps):
+      self.current_image_index = len(self.pixmaps) - 1
     self.current_image_text.setText(f"{self.current_image_index + 1}/{len(self.pixmaps)}")
     if len(self.pixmaps) == 0:
       self.image_label.setPixmap(QPixmap())
@@ -70,8 +76,7 @@ class ImageSelector(QWidget):
     if self.pixmaps == []:
       return
     self.pixmaps.pop(self.current_image_index)
-    if self.current_image_index >= len(self.pixmaps):
-      self.current_image_index = len(self.pixmaps) - 1
+    
     self.update_current_image_index()
 
   def upload_image(self):
@@ -89,4 +94,31 @@ class ImageSelector(QWidget):
     self.pixmaps = pixmaps
     self.current_image_index = 0
     self.update_current_image_index()
+
+  def add_pixmap(self, pixmap):
+        """
+        Добавляет изображение в коллекцию и создает его отображение
+        :param pixmap: QPixmap - добавляемое изображение
+        """
+        if pixmap.isNull():
+            return False
+
+        try:
+            # Сохраняем оригинал
+            self.pixmaps.append(pixmap)
+            
+            # Создаем миниатюру для отображения
+            #thumbnail = pixmap.scaled(
+            #    100, 100,
+            #    Qt.AspectRatioMode.KeepAspectRatio,
+            #    Qt.TransformationMode.SmoothTransformation
+            #)
+            
+            # Создаем QLabel для отображения
+            self.image_label.setPixmap(pixmap)
+            
+            return True
+        except Exception as e:
+            print(f"Ошибка добавления изображения: {e}")
+            return False
 
