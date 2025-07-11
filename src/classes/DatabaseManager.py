@@ -3,6 +3,7 @@ import os
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
 from PyQt6.QtCore import QByteArray, QBuffer, QIODevice
 from PyQt6.QtGui import QPixmap
+from pprint import pprint
 
 class DatabaseManager:
     def __init__(self):
@@ -89,12 +90,12 @@ class DatabaseManager:
         """Записывает данные в БД"""
         cursor = connection.cursor()
         
-        cursor.execute('DELETE FROM unit_images')
-        cursor.execute('DELETE FROM units')
+        #cursor.execute('DELETE FROM unit_images')
+        #cursor.execute('DELETE FROM units')
         
         for unit in units:
             cursor.execute('''
-            INSERT INTO units (last_name, first_name, middle_name, description)
+            INSERT OR IGNORE INTO units (last_name, first_name, middle_name, description)
             VALUES (?, ?, ?, ?)
             ''', (
                 unit.last_name_text_edit.text(),
@@ -108,7 +109,7 @@ class DatabaseManager:
             for pixmap in unit.images.get_pixmaps():
                 image_bytes = self._pixmap_to_bytes(pixmap)
                 cursor.execute('''
-                INSERT INTO unit_images (unit_id, image_data)
+                INSERT OR IGNORE INTO unit_images (unit_id, image_data)
                 VALUES (?, ?)
                 ''', (unit_id, image_bytes))
         
@@ -133,7 +134,7 @@ class DatabaseManager:
                 'description': unit_row['description'],
                 'images': images
             })
-        
+
         return units_data
 
     def _pixmap_to_bytes(self, pixmap):

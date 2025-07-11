@@ -1,9 +1,10 @@
 from PyQt6.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QVBoxLayout, QHBoxLayout, QMenuBar, QPushButton
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QPixmap, QImage
 from classes.MainList import MainList
 from classes.ListUnit import ListUnit
 from classes.DatabaseManager import DatabaseManager
+from pprint import pprint
 
 class MainWindow(QWidget):
   def __init__(self):
@@ -11,7 +12,17 @@ class MainWindow(QWidget):
     self.resize(600, 800)
     self.List: MainList = MainList()
     self.setupUI()
-    self.DBW = DatabaseManager()
+    self.DBM = DatabaseManager()
+
+    #for i in range(400):
+    #  unit = ListUnit()
+    #  unit.update_information("test", "test", "test",
+    #                          "a big description",
+    #                          [QPixmap(QImage("/home/astr/Programming/Python/FamilyList/src/img/arrow_down.png")),
+    #                           QPixmap(QImage("/home/astr/Programming/Python/FamilyList/src/img/arrow_up.png")),
+    #                           QPixmap(QImage("/home/astr/Programming/Python/FamilyList/src/img/delete_icon.png")),
+    #                           QPixmap(QImage("/home/astr/Programming/Python/FamilyList/src/img/edit_icon.png"))])
+    #  self.List.addUnit(unit)
 
   def setupUI(self):
     self.central_layout = QVBoxLayout()
@@ -91,26 +102,32 @@ class MainWindow(QWidget):
 
   def downloadDB(self):
     """Обработчик загрузки БД"""
-    units_data = self.DBW.load_units(self)
+    units_data = self.DBM.load_units(self)
     if units_data is not None:
         # Очищаем текущие данные
         self.List.clear_units()
         
         # Загружаем новые данные
         for unit_data in units_data:
+            pprint(unit_data)
             unit = ListUnit()
-            unit.last_name_text_edit.setText(unit_data['last_name'])
-            unit.first_name_text_edit.setText(unit_data['first_name'])
-            unit.middle_name_text_edit.setText(unit_data['middle_name'])
-            unit.description.setText(unit_data['description'])
+            unit.update_information(unit_data['last_name'],
+                                    unit_data['first_name'],
+                                    unit_data['middle_name'],
+                                    unit_data['description'],
+                                    unit_data['images'])
+            #unit.last_name_text_edit.setText(unit_data['last_name'])
+            #unit.first_name_text_edit.setText(unit_data['first_name'])
+            #unit.middle_name_text_edit.setText(unit_data['middle_name'])
+            #unit.description.setText(unit_data['description'])
             
-            for pixmap in unit_data['images']:
-                unit.images.add_pixmap(pixmap)
+            #for pixmap in unit_data['images']:
+            #    unit.images.add_pixmap(pixmap)
             
             self.List.addUnit(unit)
 
   def uploadDB(self):
-    self.DBW.save_units(self.List.get_list())
+    self.DBM.save_units(self.List.get_list())
 
   def manage_list(self):
     self.List.turn_to_manage_mode()

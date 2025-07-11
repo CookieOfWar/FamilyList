@@ -38,6 +38,7 @@ class EditUnitDialog(QWidget):
 
     self.image_edit = ImageSelector(True, pix)
     self.hbox.addWidget(self.image_edit)
+    self.image_edit.update_current_image_index()
 
     self.bottom_hbox = QHBoxLayout()
     self.cancel_button = QPushButton("Отменить")

@@ -91,17 +91,26 @@ class MainList(QScrollArea):
     return self.units
   
   def clear_units(self):
-        """Полностью очищает все юниты из списка и layout"""
+        #"""Полностью очищает все юниты из списка и layout"""
         # 1. Удаляем все виджеты из layout
-        while self.vbox.count():
-            item = self.vbox.takeAt(0)  # Берем первый элемент
-            widget = item.widget()
-            if widget:
-                widget.setParent(None)  # Удаляем родителя
-                widget.deleteLater()   # Планируем удаление виджета
+        #while self.vbox.count():
+        #    item = self.vbox.takeAt(0)  # Берем первый элемент
+        #    widget = item.widget()
+        #    if widget:
+        #        widget.setParent(None)  # Удаляем родителя
+        #        widget.deleteLater()   # Планируем удаление виджета
+
+        print(self.units)
+        for unit in self.units:
+          #print("killed unit ", unit)
+          #self.kill_unit(unit)
+          self.vbox.removeWidget(unit)
+          unit.deleteLater()
+        self.units.clear()
         
         # 2. Очищаем внутренний список
-        self.units.clear()
+        #self.units.clear()
+        self.manageMode = False
         
         # 3. (Опционально) Обновляем интерфейс
         self.updateGeometry()
