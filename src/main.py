@@ -2,6 +2,7 @@ from classes.MainWindow import MainWindow
 from classes.MainList import MainList
 from classes.ListUnit import ListUnit
 from classes.ImageSelector import ImageSelector
+import os
 
 from PyQt6.QtWidgets import QApplication
 
@@ -16,3 +17,4 @@ if __name__ == '__main__':
   #imageSelector.show()
   
   sys.exit(app.exec())
+

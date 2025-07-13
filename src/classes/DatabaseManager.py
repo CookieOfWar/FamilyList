@@ -1,47 +1,110 @@
 import sqlite3
 import os
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
-from PyQt6.QtCore import QByteArray, QBuffer, QIODevice
+from PyQt6.QtCore import QByteArray, QBuffer, QIODevice, pyqtSignal
 from PyQt6.QtGui import QPixmap
 from pprint import pprint
+
+import shutil
+import time
+from blinker import signal
 
 class DatabaseManager:
     def __init__(self):
         self.db_path = None
 
-    def save_units(self, units, parent_widget=None):
-        """Сохраняет юниты в выбранный файл БД"""
-        default_path = os.path.join(os.getcwd(), "family_list_backup.db")
-        file_path, _ = QFileDialog.getSaveFileName(
-            parent_widget,
-            "Сохранить базу данных",
-            default_path,
-            "SQLite Database (*.db *.sqlite)"
-        )
+    def save_units(self, units, parent_widget=None, withMessages=True, autosave=False):
+        if not autosave:
+          """Сохраняет юниты в выбранный файл БД"""
+          default_path = os.path.join(os.getcwd(), "family_list_backup.db")
+          file_path, _ = QFileDialog.getSaveFileName(
+              parent_widget,
+              "Сохранить базу данных",
+              default_path,
+              "SQLite Database (*.db *.sqlite)"
+          )
+          
+          if not file_path:
+              return False
+
+        else:
+            file_path = self.db_path
         
-        if not file_path:
-            return False
-        
-        try:
-            # Создаем временную копию для безопасного сохранения
-            temp_path = file_path + ".tmp"
+        max_retries = 3
+
+        for attempt in range(max_retries):
+            try:
+                # Создаем временную копию для безопасного сохранения
+                temp_path = file_path + ".tmp"
+                
+                with sqlite3.connect(temp_path) as conn:
+                    self._init_db(conn)
+                    self._write_data(conn, units)
+
+                conn.close()
+                
+                # Если сохранение успешно, заменяем старый файл
+                #if os.path.exists(file_path):
+                #    os.remove(file_path)
+                #os.rename(temp_path, file_path)
+
+                # Другой метод с shutil
+                shutil.copy2(temp_path, file_path)
+                os.unlink(temp_path)
+                
+                if withMessages:
+                  QMessageBox.information(parent_widget, "Успех", "База данных успешно сохранена!")
+                self.db_path = file_path
+                signal("DB_Saved").send(self, data=True)
+                return True
             
-            with sqlite3.connect(temp_path) as conn:
-                self._init_db(conn)
-                self._write_data(conn, units)
-            
-            # Если сохранение успешно, заменяем старый файл
-            if os.path.exists(file_path):
-                os.remove(file_path)
-            os.rename(temp_path, file_path)
-            
-            QMessageBox.information(parent_widget, "Успех", "База данных успешно сохранена!")
-            return True
-        except Exception as e:
-            QMessageBox.critical(parent_widget, "Ошибка", f"Не удалось сохранить данные: {str(e)}")
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-            return False
+            except PermissionError as e:
+                # Ошибка блокировки файла
+                if attempt == max_retries - 1:  # Последняя попытка
+                    QMessageBox.critical(
+                        parent_widget,
+                        "Ошибка",
+                        f"Файл занят другим процессом. Закройте его и попробуйте снова.\n\nОшибка: {str(e)}"
+                    )
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+                    signal("DB_Saved").send(self, data=False)
+                    return False
+
+                # Предлагаем повторить
+                retry = QMessageBox.question(
+                    parent_widget,
+                    "Ошибка",
+                    "Не удалось сохранить файл (возможно, он открыт в другой программе).\nПовторить попытку?",
+                    QMessageBox.StandardButton.Retry | QMessageBox.StandardButton.Cancel,
+                    QMessageBox.StandardButton.Retry
+                )
+
+                if retry == QMessageBox.Cancel:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+                    signal("DB_Saved").send(self, data=False)
+                    return False
+                
+                try:
+                    conn.close()
+                except:
+                    pass
+                time.sleep(1)  # Пауза перед повторной попыткой
+
+            except Exception as e:
+                # Другие ошибки
+                QMessageBox.critical(
+                    parent_widget,
+                    "Ошибка",
+                    f"Неизвестная ошибка при сохранении: {str(e)}"
+                )
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                    signal("DB_Saved").send(self, data=False)
+                return False
+
+        return False
 
     def load_units(self, parent_widget=None):
         """Загружает юниты из выбранного файла БД"""
@@ -58,10 +121,14 @@ class DatabaseManager:
         try:
             with sqlite3.connect(file_path) as conn:
                 conn.row_factory = sqlite3.Row
+                self.db_path = file_path
                 return self._read_data(conn)
         except Exception as e:
             QMessageBox.critical(parent_widget, "Ошибка", f"Не удалось загрузить данные: {str(e)}")
             return None
+        
+    def get_db_path(self):
+        return self.db_path
 
     def _init_db(self, connection):
         """Инициализирует структуру БД"""

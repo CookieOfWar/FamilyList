@@ -7,6 +7,8 @@ from PyQt6.QtGui import QIcon
 from classes.ImageSelector import ImageSelector
 from classes.EditUnitDialog import EditUnitDialog
 
+from utils import resource_path
+
 
 class ListUnit(QWidget):
     move_self_signal = pyqtSignal(object, int)
@@ -45,7 +47,7 @@ class ListUnit(QWidget):
         self.top_layout.addWidget(self.more_info_button)
 
         self.edit_button = QPushButton()
-        self.edit_button.setIcon(QIcon("src/img/edit_icon.png"))
+        self.edit_button.setIcon(QIcon(resource_path("img/edit_icon.png")))
         self.edit_button.setFixedSize(20, 20)
         self.edit_button.setIconSize(self.edit_button.size())
         self.edit_button.clicked.connect(self.edit_information)
@@ -53,7 +55,7 @@ class ListUnit(QWidget):
 
         self.index_change_text = QTextEdit()
         self.delete_button = QPushButton()
-        self.delete_button.setIcon(QIcon("src/img/delete_icon.png"))
+        self.delete_button.setIcon(QIcon(resource_path("img/delete_icon.png")))
         self.delete_button.setFixedSize(20, 20)
         self.delete_button.clicked.connect(self.delete_unit)
         self.delete_button.setIconSize(self.delete_button.size())

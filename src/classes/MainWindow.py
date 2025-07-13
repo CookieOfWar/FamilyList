@@ -1,10 +1,13 @@
-from PyQt6.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QVBoxLayout, QHBoxLayout, QMenuBar, QPushButton
+from PyQt6.QtWidgets import (QMainWindow, QWidget, QLabel, QTextEdit,
+                             QVBoxLayout, QHBoxLayout, QMenuBar, QPushButton, QMessageBox)
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QIcon, QPixmap, QImage
+from PyQt6.QtGui import QCloseEvent, QIcon, QPixmap, QImage
 from classes.MainList import MainList
 from classes.ListUnit import ListUnit
 from classes.DatabaseManager import DatabaseManager
 from pprint import pprint
+
+from utils import resource_path, auto_save
 
 class MainWindow(QWidget):
   def __init__(self):
@@ -14,14 +17,16 @@ class MainWindow(QWidget):
     self.setupUI()
     self.DBM = DatabaseManager()
 
+    self.autosave = auto_save(self.DBM, self.List)
+
     #for i in range(400):
     #  unit = ListUnit()
     #  unit.update_information("test", "test", "test",
     #                          "a big description",
-    #                          [QPixmap(QImage("/home/astr/Programming/Python/FamilyList/src/img/arrow_down.png")),
-    #                           QPixmap(QImage("/home/astr/Programming/Python/FamilyList/src/img/arrow_up.png")),
-    #                           QPixmap(QImage("/home/astr/Programming/Python/FamilyList/src/img/delete_icon.png")),
-    #                           QPixmap(QImage("/home/astr/Programming/Python/FamilyList/src/img/edit_icon.png"))])
+    #                          [QPixmap(QImage("/home/astr/Programming/Python/FamilyList/img/arrow_down.png")),
+    #                           QPixmap(QImage("/home/astr/Programming/Python/FamilyList/img/arrow_up.png")),
+    #                           QPixmap(QImage("/home/astr/Programming/Python/FamilyList/img/delete_icon.png")),
+    #                           QPixmap(QImage("/home/astr/Programming/Python/FamilyList/img/edit_icon.png"))])
     #  self.List.addUnit(unit)
 
   def setupUI(self):
@@ -55,13 +60,14 @@ class MainWindow(QWidget):
 
     download_button = QPushButton()
     download_button.clicked.connect(self.downloadDB)
-    download_button.setIcon(QIcon("src/img/download_icon.png"))
+    print("resourse path: " + resource_path("img/download_icon.png"))
+    download_button.setIcon(QIcon(resource_path("img/download_icon.png")))
     download_button.setFixedSize(40, 40)
     download_button.setIconSize(download_button.size())
 
     upload_button = QPushButton()
     upload_button.clicked.connect(self.uploadDB)
-    upload_button.setIcon(QIcon("src/img/upload_icon.png"))
+    upload_button.setIcon(QIcon(resource_path("img/upload_icon.png")))
     upload_button.setFixedSize(40, 40)
     upload_button.setIconSize(upload_button.size())
 
@@ -74,7 +80,7 @@ class MainWindow(QWidget):
 
     manage_button = QPushButton()
     manage_button.clicked.connect(self.manage_list)
-    manage_button.setIcon(QIcon("src/img/settings_icon.png"))
+    manage_button.setIcon(QIcon(resource_path("img/settings_icon.png")))
     manage_button.setFixedSize(40, 40)
     manage_button.setIconSize(manage_button.size())
 
@@ -131,3 +137,20 @@ class MainWindow(QWidget):
 
   def manage_list(self):
     self.List.turn_to_manage_mode()
+
+
+  def closeEvent(self, event: QCloseEvent | None) -> None:
+    reply = QMessageBox.question(
+            self, 
+            'Подтверждение',
+            'Вы уверены, что хотите закрыть окно? Не забудьте сохраниться.',
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+    if reply == QMessageBox.StandardButton.Yes:
+        # Выполняем действия перед закрытием
+        self.autosave.stop_thread()
+        event.accept()  # Принимаем закрытие
+    else:
+        event.ignore() 
