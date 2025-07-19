@@ -90,7 +90,7 @@ class MainWindow(QWidget):
 
     pdf_button = QPushButton()
     pdf_button.clicked.connect(self.generatePDF)
-    #pdf_button.setIcon(QIcon(resource_path("img/pdf_icon.png")))
+    pdf_button.setIcon(QIcon(resource_path("img/pdf_icon.png")))
     pdf_button.setFixedSize(40, 40)
     pdf_button.setIconSize(pdf_button.size())
     tool_layout.addWidget(pdf_button)

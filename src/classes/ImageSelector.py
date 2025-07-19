@@ -17,8 +17,9 @@ class ImageSelector(QWidget):
     self.setLayout(self.vbox)
 
     self.image_label = QLabel()
-    self.image_label.setMaximumSize(200, 250)
-    self.image_label.setScaledContents(True)
+    self.image_label.setFixedSize(220, 220)
+    #self.image_label.setMaximumSize(200, 250)
+    #self.image_label.setScaledContents(True)
     self.vbox.addWidget(self.image_label)
 
     self.hbox = QHBoxLayout()
@@ -70,7 +71,8 @@ class ImageSelector(QWidget):
     if len(self.pixmaps) == 0:
       self.image_label.setPixmap(QPixmap())
     else:
-      self.image_label.setPixmap(self.pixmaps[self.current_image_index])
+      scaled_pixmap = self.pixmaps[self.current_image_index].scaled(self.image_label.width(), self.image_label.height(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+      self.image_label.setPixmap(scaled_pixmap)
 
   def delete_image(self):
     if self.pixmaps == []:
@@ -115,7 +117,8 @@ class ImageSelector(QWidget):
             #)
             
             # Создаем QLabel для отображения
-            self.image_label.setPixmap(pixmap)
+            scaled_pixmap = pixmap.scaled(self.image_label.width(), self.image_label.height(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self.image_label.setPixmap(scaled_pixmap)
             
             return True
         except Exception as e:

@@ -85,7 +85,7 @@ class PDFMaker:
     # Определяем сетку для изображений
     if num_images == 1:
       cols = 1
-    elif num_images == 2:
+    elif num_images >= 2 and num_images <= 4:
       cols = 2
     else:
       cols = min(num_images, self.max_images_per_row)
