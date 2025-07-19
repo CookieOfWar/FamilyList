@@ -1,5 +1,6 @@
 import sys
 import os
+import math
 
 from fpdf import FPDF
 import tempfile
@@ -48,6 +49,7 @@ class PDFMaker:
     self.page_height = 297  # высота страницы A4 в мм
     self.margin = 15       # отступ от краев
     self.spacing = 5       # промежуток между фото
+    self.max_images_per_row = 3
 
   def add_person(self, person: ListUnit):
     page_num = self.pdf.page_no() + 1
@@ -72,20 +74,85 @@ class PDFMaker:
     self._add_images(person.get_pixmaps())
 
   def _add_images(self, images):
-    self.pdf.set_font("Roboto", 'I', 10)
-    self.pdf.cell(0, 10, "Фотографии:", ln=1)
+    if not images:
+      return
+        
+    num_images = len(images)
+    usable_width = self.page_width - 2 * self.margin
+    current_y = self.pdf.get_y()
+    usable_height = self.page_height - current_y - self.margin
     
-    for i, pixmap in enumerate(images):
-      # Сохраняем QPixmap во временный файл
-      temp_path = os.path.join(self.temp_dir, f"temp_img_{i}.png")
-      pixmap.save(temp_path, "PNG")
+    # Определяем сетку для изображений
+    if num_images == 1:
+      cols = 1
+    elif num_images == 2:
+      cols = 2
+    else:
+      cols = min(num_images, self.max_images_per_row)
+    
+    rows = math.ceil(num_images / cols)
+    
+    # Максимальная ширина и высота для одного изображения
+    max_img_width = (usable_width - (cols - 1) * self.spacing) / cols
+    max_img_height = (usable_height - (rows - 1) * self.spacing) / rows
+    
+    # Временные файлы для изображений
+    temp_paths = []
+    try:
+      # Сначала сохраняем все изображения во временные файлы и получаем их размеры
+      img_info = []
+      for i, pixmap in enumerate(images):
+        temp_path = os.path.join(self.temp_dir, f"temp_img_{i}.png")
+        pixmap.save(temp_path)
+        temp_paths.append(temp_path)
+        
+        # Получаем размеры изображения (в пикселях)
+        width_px = pixmap.width()
+        height_px = pixmap.height()
+        aspect_ratio = width_px / height_px
+        img_info.append((temp_path, aspect_ratio))
       
-      # Добавляем изображение в PDF
-      self.pdf.image(temp_path, x=10, w=100)
-      self.pdf.ln(5)
+      # Добавляем изображения в сетку с сохранением пропорций
+      for i, (img_path, aspect_ratio) in enumerate(img_info):
+        row = i // cols
+        col = i % cols
+        
+        # Рассчитываем размеры с сохранением пропорций
+        # Сначала пробуем по ширине
+        img_width = max_img_width
+        img_height = img_width / aspect_ratio
+        
+        # Если не помещается по высоте, то подгоняем по высоте
+        if img_height > max_img_height:
+          img_height = max_img_height
+          img_width = img_height * aspect_ratio
+        
+        # Позиция на странице
+        x = self.margin + col * (max_img_width + self.spacing)
+        y = current_y + row * (max_img_height + self.spacing)
+        
+        # Центрируем изображение в ячейке
+        x_offset = (max_img_width - img_width) / 2
+        y_offset = (max_img_height - img_height) / 2
+        
+        # Если выходим за пределы страницы, добавляем новую
+        if y + max_img_height > self.page_height - self.margin:
+          self.pdf.add_page()
+          current_y = self.margin
+          y = current_y + (i // cols) * (max_img_height + self.spacing)
+        
+        # Вставляем изображение
+        self.pdf.image(img_path, x=x + x_offset, y=y + y_offset, w=img_width, h=img_height)
       
-      # Удаляем временный файл
-      os.remove(temp_path)
+      # Обновляем текущую позицию Y
+      last_row = (num_images - 1) // cols
+      self.pdf.set_y(current_y + (last_row + 1) * (max_img_height + self.spacing))
+    
+    finally:
+      # Удаляем временные файлы
+      for temp_path in temp_paths:
+        if os.path.exists(temp_path):
+          os.remove(temp_path)
 
   def _add_toc_page(self):
     # Сохраняем текущую позицию
