@@ -1,10 +1,11 @@
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QLabel, QTextEdit,
-                             QVBoxLayout, QHBoxLayout, QMenuBar, QPushButton, QMessageBox)
+                             QVBoxLayout, QHBoxLayout, QMenuBar, QPushButton, QMessageBox, QFileDialog)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QCloseEvent, QIcon, QPixmap, QImage
 from classes.MainList import MainList
 from classes.ListUnit import ListUnit
 from classes.DatabaseManager import DatabaseManager
+from classes.PDFMaker import PDFMaker
 from pprint import pprint
 
 from utils import resource_path, auto_save
@@ -87,6 +88,13 @@ class MainWindow(QWidget):
     tool_layout.addWidget(add_button)
     tool_layout.addWidget(manage_button)
 
+    pdf_button = QPushButton()
+    pdf_button.clicked.connect(self.generatePDF)
+    #pdf_button.setIcon(QIcon(resource_path("img/pdf_icon.png")))
+    pdf_button.setFixedSize(40, 40)
+    pdf_button.setIconSize(pdf_button.size())
+    tool_layout.addWidget(pdf_button)
+
   def reset_filters(self):
     for i in [self.filter_last_button, self.filter_first_button, self.filter_middle_button]:
       i.setText(i.text().replace(" ▲", "").replace(" ▼", ""))
@@ -137,6 +145,12 @@ class MainWindow(QWidget):
 
   def manage_list(self):
     self.List.turn_to_manage_mode()
+
+  def generatePDF(self):
+    out = QFileDialog.getSaveFileName(self, "Сохранить как", "", "PDF (*.pdf)")
+    if out[0] == "":
+      return
+    PDFMaker().create_pdf(self.List.get_list(), out[0])
 
 
   def closeEvent(self, event: QCloseEvent | None) -> None:

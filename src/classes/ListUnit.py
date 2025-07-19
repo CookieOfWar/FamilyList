@@ -83,6 +83,8 @@ class ListUnit(QWidget):
         return self.first_name_text_edit.text()
     def get_middle_name(self):
         return self.middle_name_text_edit.text()
+    def get_full_name(self):
+        return f"{self.last_name_text_edit.text()} {self.first_name_text_edit.text()} {self.middle_name_text_edit.text()}"
     def get_description(self):
         return self.description.text()
     def get_pixmaps(self):
