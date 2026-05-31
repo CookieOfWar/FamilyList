@@ -15,6 +15,7 @@ class MainList(QScrollArea):
     self.vbox = QVBoxLayout(widget)
     self.vbox.setAlignment(Qt.AlignmentFlag.AlignTop)
     self.vbox.setContentsMargins(0,0,0,0)
+    self.vbox.addStretch(1)
 
     self.setWidget(widget)
     self.setWidgetResizable(True)
@@ -25,8 +26,14 @@ class MainList(QScrollArea):
     
 
   def addUnit(self, unit):
-    self.vbox.addWidget(unit)
-    self.units.append(unit)
+    count = self.vbox.count()
+    if count > 0:
+      self.vbox.insertWidget(count - 1, unit)
+      self.units.append(unit)
+    else:
+      self.vbox.addWidget(unit)
+      self.vbox.addStretch(1)
+      self.units.append(unit)
 
     unit.move_self_signal.connect(self.move_unit)
     unit.kys_signal.connect(self.kill_unit)
@@ -59,25 +66,33 @@ class MainList(QScrollArea):
   def turn_to_manage_mode(self, forceTurn=False):
     if forceTurn:
       for unit_index in range(len(self.units)):
+        self.units[unit_index].forceHideInfo()
         self.units[unit_index].turn_to_normal_mode()
-        self.units[unit_index].turn_to_manage_mode(unit_index)  
+        self.units[unit_index].turn_to_manage_mode()  
+        self.manageMode = True
       return
     for unit_index in range(len(self.units)):
+      self.units[unit_index].forceHideInfo()
       if self.manageMode:
         self.units[unit_index].turn_to_normal_mode()
       else:
-        self.units[unit_index].turn_to_manage_mode(unit_index)
+        self.units[unit_index].turn_to_manage_mode()
     
     self.manageMode = not self.manageMode
 
   
-  def move_unit(self, unit, index):
-    if index < 1 or index > len(self.units):
-      return
-    self.vbox.removeWidget(unit)
-    self.vbox.insertWidget(index - 1, unit)
-
-    self.turn_to_manage_mode(forceTurn=True)
+  def move_unit(self, unit, offset):
+    try:
+        current_index = self.units.index(unit)
+    except ValueError:
+        return
+    target_index = current_index + offset
+    if target_index < 0 or target_index >= len(self.units):
+        return
+    self.units.pop(current_index)
+    self.units.insert(target_index, unit)
+    self.vbox.insertWidget(target_index, unit)
+    unit.turn_to_manage_mode()
 
   def kill_unit(self, unit):
     self.vbox.removeWidget(unit)

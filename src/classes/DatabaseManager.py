@@ -1,7 +1,7 @@
 import sqlite3
 import os
-from PyQt6.QtWidgets import QFileDialog, QMessageBox
-from PyQt6.QtCore import QByteArray, QBuffer, QIODevice, pyqtSignal
+from PyQt6.QtWidgets import QFileDialog, QMessageBox, QProgressDialog
+from PyQt6.QtCore import QByteArray, QBuffer, QIODevice, pyqtSignal, QCoreApplication, Qt
 from PyQt6.QtGui import QPixmap
 from pprint import pprint
 
@@ -15,95 +15,81 @@ class DatabaseManager:
 
     def save_units(self, units, parent_widget=None, withMessages=True, autosave=False):
         if not autosave:
-          """Сохраняет юниты в выбранный файл БД"""
-          default_path = os.path.join(os.getcwd(), "family_list_backup.db")
-          file_path, _ = QFileDialog.getSaveFileName(
-              parent_widget,
-              "Сохранить базу данных",
-              default_path,
-              "SQLite Database (*.db *.sqlite)"
-          )
-          
-          if not file_path:
-              return False
-
+            default_path = os.path.join(os.getcwd(), "family_list_backup.db")
+            file_path, _ = QFileDialog.getSaveFileName(
+                parent_widget,
+                "Сохранить базу данных",
+                default_path,
+                "SQLite Database (*.db *.sqlite)"
+            )
+            if not file_path:
+                return False
         else:
             file_path = self.db_path
         
-        max_retries = 3
+        # Создаем окно прогресса ТОЛЬКО для ручного сохранения
+        progress = None
+        if not autosave and units:
+            progress = QProgressDialog("Подготовка к сохранению базы данных...", None, 0, len(units) + 1, parent_widget)
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.setMinimumDuration(0)
+            progress.setAutoClose(False)
+            progress.show()
+            QCoreApplication.processEvents()
 
+        max_retries = 3
         for attempt in range(max_retries):
             try:
-                # Создаем временную копию для безопасного сохранения
                 temp_path = file_path + ".tmp"
                 
                 with sqlite3.connect(temp_path) as conn:
                     self._init_db(conn)
-                    self._write_data(conn, units)
+                    # Передаем объект прогресса в метод записи данных
+                    self._write_data(conn, units, progress)
 
                 conn.close()
                 
-                # Если сохранение успешно, заменяем старый файл
-                #if os.path.exists(file_path):
-                #    os.remove(file_path)
-                #os.rename(temp_path, file_path)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                os.rename(temp_path, file_path)
 
-                # Другой метод с shutil
-                shutil.copy2(temp_path, file_path)
-                os.unlink(temp_path)
+                # Закрываем прогресс-бар по окончании
+                if progress:
+                    progress.setValue(len(units) + 1)
+                    progress.close()
                 
                 if withMessages:
-                  QMessageBox.information(parent_widget, "Успех", "База данных успешно сохранена!")
+                    QMessageBox.information(parent_widget, "Успех", "База данных успешно сохранена!")
                 self.db_path = file_path
                 signal("DB_Saved").send(self, data=True)
                 return True
             
             except PermissionError as e:
-                # Ошибка блокировки файла
-                if attempt == max_retries - 1:  # Последняя попытка
-                    QMessageBox.critical(
-                        parent_widget,
-                        "Ошибка",
-                        f"Файл занят другим процессом. Закройте его и попробуйте снова.\n\nОшибка: {str(e)}"
-                    )
-                    if os.path.exists(temp_path):
-                        os.remove(temp_path)
+                if progress: progress.close() # Закрываем, чтобы не висел поверх окон ошибок
+                if attempt == max_retries - 1:
+                    QMessageBox.critical(parent_widget, "Ошибка", f"Файл занят другим процессом...\n\nОшибка: {str(e)}")
+                    if os.path.exists(temp_path): os.remove(temp_path)
                     signal("DB_Saved").send(self, data=False)
                     return False
 
-                # Предлагаем повторить
                 retry = QMessageBox.question(
-                    parent_widget,
-                    "Ошибка",
-                    "Не удалось сохранить файл (возможно, он открыт в другой программе).\nПовторить попытку?",
-                    QMessageBox.StandardButton.Retry | QMessageBox.StandardButton.Cancel,
-                    QMessageBox.StandardButton.Retry
+                    parent_widget, "Ошибка",
+                    "Не удалось сохранить файл. Повторить попытку?",
+                    QMessageBox.StandardButton.Retry | QMessageBox.StandardButton.Cancel
                 )
-
                 if retry == QMessageBox.Cancel:
-                    if os.path.exists(temp_path):
-                        os.remove(temp_path)
+                    if os.path.exists(temp_path): os.remove(temp_path)
                     signal("DB_Saved").send(self, data=False)
                     return False
                 
-                try:
-                    conn.close()
-                except:
-                    pass
-                time.sleep(1)  # Пауза перед повторной попыткой
+                time.sleep(1)
 
             except Exception as e:
-                # Другие ошибки
-                QMessageBox.critical(
-                    parent_widget,
-                    "Ошибка",
-                    f"Неизвестная ошибка при сохранении: {str(e)}"
-                )
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
-                    signal("DB_Saved").send(self, data=False)
+                if progress: progress.close()
+                QMessageBox.critical(parent_widget, "Ошибка", f"Неизвестная ошибка при сохранении: {str(e)}")
+                if os.path.exists(temp_path): os.remove(temp_path)
+                signal("DB_Saved").send(self, data=False)
                 return False
-
         return False
 
     def load_units(self, parent_widget=None):
@@ -153,14 +139,17 @@ class DatabaseManager:
         ''')
         connection.commit()
 
-    def _write_data(self, connection, units):
-        """Записывает данные в БД"""
+    def _write_data(self, connection, units, progress_dialog=None):
+        """Записывает данные в БД с обновлением прогресса"""
         cursor = connection.cursor()
         
-        #cursor.execute('DELETE FROM unit_images')
-        #cursor.execute('DELETE FROM units')
-        
-        for unit in units:
+        for i, unit in enumerate(units):
+            # Если передан диалог прогресса — обновляем его статус
+            if progress_dialog:
+                progress_dialog.setLabelText(f"Сохранение: {unit.last_name_text_edit.text()}")
+                progress_dialog.setValue(i)
+                QCoreApplication.processEvents()
+
             cursor.execute('''
             INSERT OR IGNORE INTO units (last_name, first_name, middle_name, description)
             VALUES (?, ?, ?, ?)
@@ -180,6 +169,11 @@ class DatabaseManager:
                 VALUES (?, ?)
                 ''', (unit_id, image_bytes))
         
+        if progress_dialog:
+            progress_dialog.setLabelText("Фиксация изменений в файле...")
+            progress_dialog.setValue(len(units))
+            QCoreApplication.processEvents()
+
         connection.commit()
 
     def _read_data(self, connection):

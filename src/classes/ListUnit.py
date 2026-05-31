@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QPushButton, QLabel, QScrollArea, QMessageBox
+    QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QPushButton, QLabel, QScrollArea, QMessageBox, QSizePolicy
 )
 from PyQt6.QtCore import QPropertyAnimation, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon
@@ -53,21 +53,43 @@ class ListUnit(QWidget):
         self.edit_button.clicked.connect(self.edit_information)
         self.top_layout.addWidget(self.edit_button)
 
-        self.index_change_text = QTextEdit()
+        #self.index_change_text = QTextEdit()
+        self.index_up_button = QPushButton()
+        self.index_up_button.setIcon(QIcon(resource_path("img/arrow_up.png")))
+        self.index_up_button.setFixedSize(20, 20)
+        self.index_up_button.setIconSize(self.index_up_button.size())
+        
+        self.index_down_button = QPushButton()
+        self.index_down_button.setIcon(QIcon(resource_path("img/arrow_down.png")))
+        self.index_down_button.setFixedSize(20, 20)
+        self.index_down_button.setIconSize(self.index_down_button.size())
+
+        self.index_up_button.clicked.connect(lambda: self.move_self_signal.emit(self, -1))
+        self.index_down_button.clicked.connect(lambda: self.move_self_signal.emit(self, 1))
+
         self.delete_button = QPushButton()
         self.delete_button.setIcon(QIcon(resource_path("img/delete_icon.png")))
         self.delete_button.setFixedSize(20, 20)
-        self.delete_button.clicked.connect(self.delete_unit)
         self.delete_button.setIconSize(self.delete_button.size())
+        self.delete_button.clicked.connect(self.delete_unit)
 
          # Нижняя часть (контент)
         self.bottom_widget = QWidget()
         self.bottom_layout = QHBoxLayout(self.bottom_widget)
         
+        description_scroll_area = QScrollArea()
+        description_scroll_area.setWidgetResizable(True)
         self.description = QLabel("Описание будет здесь")
+
+        #description_scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        description_scroll_area.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        description_scroll_area.setMaximumHeight(200)
+
+        description_scroll_area.setWidget(self.description)
+        self.description.setWordWrap(True)
         self.images = ImageSelector()
         
-        self.bottom_layout.addWidget(self.description)
+        self.bottom_layout.addWidget(description_scroll_area)
         self.bottom_layout.addWidget(self.images)
 
         # Добавляем обе части в основной layout
@@ -111,6 +133,18 @@ class ListUnit(QWidget):
         self.isOpen = not self.isOpen
         self.animation.start()
 
+    def forceHideInfo(self):
+        if self.animation.state() == QPropertyAnimation.State.Running:
+            self.animation.stop()
+
+        if self.isOpen:
+            self.animation.setStartValue(self.maxFullHeight - self.maxTopHeight)
+            self.animation.setEndValue(0)
+            self.more_info_button.setText("▼")
+        else: return
+        self.isOpen = False
+        self.animation.start()
+
     def updateParentLayout(self, height):
         # Обновляем геометрию родителя
         if self.parent():
@@ -134,25 +168,33 @@ class ListUnit(QWidget):
         self.images.load_pixmaps(pixmaps)
 
     
-    def turn_to_manage_mode(self, index):
+    def turn_to_manage_mode(self):
         self.top_layout.removeWidget(self.more_info_button)
         self.more_info_button.hide()
         self.top_layout.removeWidget(self.edit_button)
         self.edit_button.hide()
 
-        self.top_layout.addWidget(self.index_change_text)
+        #self.top_layout.addWidget(self.index_change_text)
+        self.top_layout.addWidget(self.index_up_button)
+        self.index_up_button.show()
+        self.top_layout.addWidget(self.index_down_button)
+        self.index_down_button.show()
         self.top_layout.addWidget(self.delete_button)
-        self.index_change_text.show()
+        #self.index_change_text.show()
         self.delete_button.show()
 
-        self.index_change_text.setText(str(index + 1))
+        #self.index_change_text.setText(str(index + 1))
 
-        self.index_change_text.keyPressEvent = self.index_edit_press_event
+        #self.index_change_text.keyPressEvent = self.index_edit_press_event
 
     
     def turn_to_normal_mode(self):
-        self.top_layout.removeWidget(self.index_change_text)
-        self.index_change_text.hide()
+        #self.top_layout.removeWidget(self.index_change_text)
+        #self.index_change_text.hide()
+        self.top_layout.removeWidget(self.index_up_button)
+        self.index_up_button.hide()
+        self.top_layout.removeWidget(self.index_down_button)
+        self.index_down_button.hide()
         self.top_layout.removeWidget(self.delete_button)
         self.delete_button.hide()
 
